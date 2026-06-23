@@ -1,0 +1,15 @@
+{
+  "name": "godot-ios",
+  "description": "Godot 4 iOS deploy & App Store Connect toolkit",
+  "owner": { "name": "namasugi", "url": "https://github.com/namasugi" },
+  "plugins": [
+    {
+      "name": "godot-ios",
+      "source": "./",
+      "description": "Godot 4 iOS deploy & App Store Connect submission toolkit (device deploy, release export, submission audit, build attach).",
+      "license": "MIT",
+      "category": "workflow",
+      "tags": ["godot", "ios", "app-store-connect", "testflight"]
+    }
+  ]
+}

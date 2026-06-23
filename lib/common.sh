@@ -19,8 +19,11 @@ load_project_env() {
 }
 
 # Lazily create the toolkit's own venv with the ASC Python deps. Prints the python path.
+# As a Claude Code plugin, prefer CLAUDE_PLUGIN_DATA so the venv survives plugin version bumps
+# (the plugin dir itself is re-copied to a new cache path on each update).
 ensure_venv() {
-  local v="$GODOT_IOS_HOME/.venv"
+  local v="${CLAUDE_PLUGIN_DATA:+$CLAUDE_PLUGIN_DATA/venv}"
+  v="${v:-$GODOT_IOS_HOME/.venv}"
   if [[ ! -x "$v/bin/python" ]]; then
     echo "[godot-ios] 初回セットアップ: venv を作成中 ($v)" >&2
     python3 -m venv "$v" >&2
