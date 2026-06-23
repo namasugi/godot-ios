@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# Godot → iOS export wrapper（プロジェクト非依存。cwd の Godot プロジェクトを自動検出）。
+#
+# Why this exists: Godot's iOS exporter reads display/window/handheld/orientation as an INT enum.
+# If project.godot stores it as a STRING (e.g. "sensor"), the exporter fails to parse it and silently
+# falls back to LANDSCAPE-ONLY in the generated Info.plist. The Godot editor tends to (re)write the
+# string form, so we normalize to the int right before every export.
+#   enum: 0=landscape 1=portrait 2=reverse_landscape 3=reverse_portrait
+#         4=sensor_landscape 5=sensor_portrait 6=sensor(all 4 orientations)
+# Override the value via IOS_ORIENT (default 6). Override the preset name via IOS_PRESET (default "iOS").
+# Per-project defaults can live in <project>/tools/ios.env.
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+cd "$(find_project_root)"
+load_project_env
+
+PRESET="${IOS_PRESET:-iOS}"
+ORIENT="${IOS_ORIENT:-6}"
+GODOT="${GODOT_BIN:-godot}"
+
+XCODEPROJ=$(awk -F'"' '/^export_path=/{print $2; exit}' export_presets.cfg)
+if [[ -z "${XCODEPROJ:-}" ]]; then
+  echo "✗ export_presets.cfg に export_path がありません（iOSプリセット未作成？）" >&2; exit 1
+fi
+
+if grep -q 'window/handheld/orientation=' project.godot; then
+  sed -i '' "s|window/handheld/orientation=.*|window/handheld/orientation=$ORIENT|" project.godot
+fi
+
+mkdir -p "$(dirname "$XCODEPROJ")"
+echo "[ios-export] preset=$PRESET orient=$ORIENT -> $XCODEPROJ"
+# The final `xcodebuild archive` step fails for free Personal Team w/o a connected device — that's fine,
+# the .xcodeproj + .pck are written before it. ios-run builds to the specific device afterwards.
+"$GODOT" --headless --path . --export-debug "$PRESET" "$XCODEPROJ" || true
+echo "[ios-export] done -> $XCODEPROJ"

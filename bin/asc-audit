@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# App Store Connect 提出項目を監査（実行中の Godot プロジェクトの bundle id を自動使用）。
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+ROOT="$(find_project_root)"
+PY="$(ensure_venv)"
+exec env GODOT_IOS_PROJECT="$ROOT" "$PY" "$GODOT_IOS_HOME/lib/asc_audit.py" "$@"

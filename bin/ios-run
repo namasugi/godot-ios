@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# Godot → iPhone one-command deploy（プロジェクト非依存。cwd の Godot プロジェクトを自動検出）。
+# export → build (specific device) → install → launch. Works over USB or Wi-Fi (after first USB pairing).
+#   usage: ios-run [UDID]   (UDID auto-detected from the connected iPhone if omitted)
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+cd "$(find_project_root)"
+load_project_env
+
+# --- derive project values from export_presets.cfg ---
+XCODEPROJ=$(awk -F'"' '/^export_path=/{print $2; exit}' export_presets.cfg)
+BUNDLE_ID=$(awk -F'"' '/application\/bundle_identifier=/{print $2; exit}' export_presets.cfg)
+SCHEME=$(basename "$XCODEPROJ" .xcodeproj)
+DD="build/dd"
+APP="$DD/Build/Products/Debug-iphoneos/${SCHEME}.app"
+if [[ -z "$BUNDLE_ID" || -z "$XCODEPROJ" ]]; then
+  echo "✗ export_presets.cfg から bundle_identifier / export_path を読めません" >&2; exit 1
+fi
+
+# --- 1. device UDID (physical iPhone) ---
+UDID="${1:-}"
+if [[ -z "$UDID" ]]; then
+  UDID=$(xcrun xctrace list devices 2>/dev/null \
+    | grep -iE "iphone|ipad" | grep -viE "simulator" \
+    | grep -oE "[0-9A-Fa-f]{8}-[0-9A-Fa-f]{16}|[0-9A-F]{40}" | head -1)
+fi
+if [[ -z "$UDID" ]]; then
+  echo "✗ iPhoneが見つかりません。USB接続＋『信頼』、または同一Wi-Fi（ペアリング済み）を確認。" >&2
+  xcrun devicectl list devices 2>/dev/null >&2 || true
+  exit 1
+fi
+echo "▶ device=$UDID  scheme=$SCHEME  bundle=$BUNDLE_ID"
+
+# --- 2. export (orientation正規化 + pck/project再生成) ---
+"$GODOT_IOS_HOME/bin/ios-export" >/dev/null 2>&1 || true
+echo "▶ exported"
+
+# --- 3. build & sign to the SPECIFIC device (generic/platform=ios can't register a free-team device) ---
+rm -rf "$DD"
+if ! xcodebuild -project "$XCODEPROJ" -scheme "$SCHEME" -configuration Debug \
+     -destination "id=$UDID" -allowProvisioningUpdates -derivedDataPath "$DD" build \
+     2>&1 | tee /tmp/godot_ios_xcodebuild.log | grep -qE "BUILD SUCCEEDED"; then
+  echo "✗ ビルド失敗:" >&2
+  grep -iE "error:|Developer Mode|provisioning|no devices|signing" /tmp/godot_ios_xcodebuild.log | head >&2
+  exit 1
+fi
+echo "▶ build succeeded"
+
+# --- 4. install → launch (launch fails harmlessly if the phone is locked) ---
+xcrun devicectl device install app --device "$UDID" "$APP" >/dev/null
+echo "▶ installed"
+if xcrun devicectl device process launch --device "$UDID" "$BUNDLE_ID" >/dev/null 2>&1; then
+  echo "✅ launched $BUNDLE_ID on $UDID"
+else
+  echo "✅ installed $BUNDLE_ID（自動起動不可: iPhoneをロック解除してアイコンをタップ）"
+fi

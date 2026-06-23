@@ -1,0 +1,6 @@
+# 秘密情報は絶対にコミットしない（public 公開前提）
+asc_auth.env
+*.p8
+.venv/
+__pycache__/
+*.pyc

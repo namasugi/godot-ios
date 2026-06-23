@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Godot → iOS リリースエクスポート（TestFlight / App Store 提出用。プロジェクト非依存）。
+# --export-release を使うので OS.is_debug_build() が false になり、デバッグUIが本番ビルドで非表示になる。
+# 生成された .xcodeproj を Xcode で開き、Archive → App Store Connect へアップロードする。
+#   orientation enum: 0=landscape 1=portrait 2=reverse_landscape 3=reverse_portrait
+#                     4=sensor_landscape 5=sensor_portrait 6=sensor(全方向)
+# 既定は 1(portrait)。IOS_ORIENT で上書き可（<project>/tools/ios.env でも可）。
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+cd "$(find_project_root)"
+load_project_env
+
+PRESET="${IOS_PRESET:-iOS}"
+ORIENT="${IOS_ORIENT:-1}"
+GODOT="${GODOT_BIN:-godot}"
+
+XCODEPROJ=$(awk -F'"' '/^export_path=/{print $2; exit}' export_presets.cfg)
+if [[ -z "${XCODEPROJ:-}" ]]; then
+  echo "✗ export_presets.cfg に export_path がありません（iOSプリセット未作成？）" >&2; exit 1
+fi
+
+if grep -q 'window/handheld/orientation=' project.godot; then
+  sed -i '' "s|window/handheld/orientation=.*|window/handheld/orientation=$ORIENT|" project.godot
+fi
+
+mkdir -p "$(dirname "$XCODEPROJ")"
+echo "[ios-export-release] preset=$PRESET orient=$ORIENT -> $XCODEPROJ"
+# 末尾の xcodebuild archive は署名設定次第で失敗しうるが、.xcodeproj/.pck はその手前で生成済み。
+# 実際の Archive/アップロードは Xcode GUI で行う。
+"$GODOT" --headless --path . --export-release "$PRESET" "$XCODEPROJ" || true
+echo "[ios-export-release] done -> $XCODEPROJ"
