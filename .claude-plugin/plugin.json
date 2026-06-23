@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "godot-ios",
   "description": "Godot 4 iOS deploy & App Store Connect submission toolkit. On-device deploy, release export, submission audit, and build attach. bundle id is auto-derived from each project's export_presets.cfg; ASC auth lives once in ~/.appstoreconnect.",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "author": { "name": "namasugi" },
   "homepage": "https://github.com/namasugi/godot-ios",
   "repository": "https://github.com/namasugi/godot-ios",

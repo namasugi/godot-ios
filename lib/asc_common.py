@@ -4,6 +4,7 @@
 - bundle id: <root>/export_presets.cfg の application/bundle_identifier から自動導出。
 - 認証: ~/.appstoreconnect/asc_auth.env（ASC_AUTH_ENV で上書き可）。リポジトリには含めない。
 """
+import json
 import os
 import re
 import time
@@ -73,3 +74,60 @@ def app_id(H, bundle):
     if not data:
         raise SystemExit(f"✗ bundle {bundle} に対応するアプリが App Store Connect に見つかりません")
     return data[0]
+
+
+# ---- export_presets.cfg から派生する値 -------------------------------------
+
+def _preset(root, key):
+    cfg = os.path.join(root or project_root(), "export_presets.cfg")
+    for line in open(cfg):
+        m = re.search(rf'{re.escape(key)}="([^"]*)"', line)
+        if m:
+            return m.group(1)
+    return None
+
+
+def scheme_name(root=None):
+    """export_path のベース名（= Xcode scheme / アプリ名）。bundleId 登録の name 既定に使う。"""
+    p = _preset(root, "export_path")
+    if p:
+        return os.path.basename(p).rsplit(".xcodeproj", 1)[0]
+    return None
+
+
+def short_version(root=None):
+    return _preset(root, "application/short_version") or "1.0.0"
+
+
+# ---- 書き込み（dry-run 安全弁つき） ----------------------------------------
+
+def mutate(H, method, url, body=None):
+    """POST/PATCH/DELETE を実行。ASC_DRY_RUN=1 のときは送信せず内容を表示する。
+    返り値: パース済み JSON（204/ dry-run のときは None）。失敗時は SystemExit。"""
+    if os.environ.get("ASC_DRY_RUN") == "1":
+        print(f"[dry-run] {method} {url}")
+        if body is not None:
+            print(json.dumps(body, ensure_ascii=False, indent=2))
+        return None
+    h = dict(H)
+    if body is not None:
+        h["Content-Type"] = "application/json"
+    r = requests.request(method, url, headers=h, json=body)
+    if r.status_code >= 400:
+        raise SystemExit(f"✗ {method} {url} → HTTP {r.status_code}: {r.text}")
+    return r.json() if r.text.strip() else None
+
+
+def editable_version(H, app):
+    """編集中（PREPARE_FOR_SUBMISSION）の appStoreVersion を返す。無ければ最新。"""
+    vers = requests.get(f"{BASE}/apps/{app}/appStoreVersions",
+                        headers=H, params={"limit": 5}).json().get("data", [])
+    if not vers:
+        raise SystemExit("✗ appStoreVersion がありません（先に asc-version-new でバージョン作成）")
+    return next((v for v in vers if v["attributes"]["appStoreState"] == "PREPARE_FOR_SUBMISSION"), vers[0])
+
+
+def require_yes(execute, what):
+    """非 dry-run 実行前のガード。--yes が無ければ dry-run に倒し、実行方法を案内する。"""
+    if not execute:
+        print(f"※ これは dry-run です（{what} は送信しません）。実際に実行するには --yes を付けてください。")

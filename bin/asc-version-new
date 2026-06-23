@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# 新しい appStoreVersion を作成（既定 dry-run。--yes で実行）
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+ROOT="$(find_project_root)"
+PY="$(ensure_venv)"
+exec env GODOT_IOS_PROJECT="$ROOT" "$PY" "$GODOT_IOS_HOME/lib/asc_version_new.py" "$@"
