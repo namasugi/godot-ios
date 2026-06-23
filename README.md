@@ -30,7 +30,8 @@ Claude Code 内で:
 ```
 
 有効化すると `bin/`（`ios-run` / `asc-audit` 等）が Bash の PATH に自動追加され、スキル
-`godot-ios:appstore` も自動で取り込まれる。**手動 symlink 不要**。認証だけ別途用意する（下記）。
+`godot-ios:deploy`（実機デプロイ）と `godot-ios:appstore`（提出）も自動で取り込まれる。**手動 symlink 不要**。
+認証だけ別途用意する（下記、`asc-*` 利用時のみ）。
 
 ### B. 手動 CLI / 非 Claude 環境
 
@@ -107,7 +108,8 @@ GODOT_BIN=godot
   plugin.json        Claude Code プラグイン定義
   marketplace.json   このリポジトリをマーケットプレイスとして公開（source: "./"）
 skills/
-  appstore/SKILL.md  提出フローのスキル（プラグインで自動取り込み / 手動は symlink）
+  deploy/    実機デプロイ＋初回セットアップのスキル（preset.cfg.template 同梱）
+  appstore/  App Store Connect 提出フローのスキル
 bin/    実行コマンド（プラグイン有効化で自動 PATH / 手動は symlink）
 lib/    共有ロジック（python / sh）。bin から呼ばれる
 install.sh           手動セットアップ（symlink + 認証雛形）

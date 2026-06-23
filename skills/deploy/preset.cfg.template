@@ -1,0 +1,45 @@
+; iOS export preset template — copy into the project's export_presets.cfg and replace <PLACEHOLDERS>.
+; Most option keys default sensibly if omitted; the ones below are the ones that matter for device deploy.
+[preset.0]
+
+name="iOS"
+platform="iOS"
+runnable=true
+advanced_options=false
+dedicated_server=false
+custom_features=""
+export_filter="all_resources"
+include_filter=""
+exclude_filter="tmp/*,.shots/*,_shot_*.png,_shot_*.png.import"
+export_path="build/ios/<APP_NAME>.xcodeproj"
+patches=PackedStringArray()
+encryption_include_filters=""
+encryption_exclude_filters=""
+seed=0
+encrypt_pck=false
+encrypt_directory=false
+script_export_mode=2
+
+[preset.0.options]
+
+custom_template/debug=""
+custom_template/release=""
+application/app_store_team_id="<TEAM_ID>"
+application/export_method_debug=0
+application/export_method_release=0
+application/targeted_device_family=0
+application/bundle_identifier="<BUNDLE_ID>"
+application/signature=""
+application/short_version="0.1.0"
+application/version="0.1.0"
+application/icon_interpolation=4
+application/min_ios_version="14.0"
+application/additional_plist_content=""
+capabilities/access_wifi=false
+capabilities/push_notifications=false
+user_data/accessible_from_files_app=false
+user_data/accessible_from_itunes_sharing=false
+storyboard/use_launch_screen_storyboard=true
+storyboard/image_scale_mode=0
+storyboard/use_custom_bg_color=false
+storyboard/custom_bg_color=Color(0, 0, 0, 1)

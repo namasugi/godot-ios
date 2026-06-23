@@ -19,12 +19,17 @@ case ":$PATH:" in
 esac
 
 # 2. Claude Code スキルを symlink（手動/開発用。Claude Code プラグインとして入れる場合は不要）
-#    旧構成（skill/ 直下を godot-ios-appstore で symlink）が残っていれば掃除する。
+#    skills/<name> を ~/.claude/skills/godot-ios-<name> として張る。同名の旧スキル（real dir / symlink）は
+#    本プラグインに統合済みのため置き換える。
 if [ -d "$HOME/.claude" ]; then
   mkdir -p "$SKILLS_DIR"
-  [ -L "$SKILLS_DIR/godot-ios-appstore" ] && rm -f "$SKILLS_DIR/godot-ios-appstore"
-  ln -sfn "$HERE/skills/appstore" "$SKILLS_DIR/godot-ios-appstore"
-  echo "✓ skill -> $SKILLS_DIR/godot-ios-appstore"
+  for d in "$HERE"/skills/*/; do
+    name="$(basename "$d")"
+    link="$SKILLS_DIR/godot-ios-$name"
+    rm -rf "$link"                       # 旧 real dir / symlink を除去（統合のため）
+    ln -sfn "${d%/}" "$link"
+    echo "✓ skill -> $link"
+  done
 else
   echo "• ~/.claude が無いのでスキル symlink はスキップ（CLI のみ利用）"
 fi
