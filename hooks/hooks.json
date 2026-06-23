@@ -1,0 +1,15 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "[ -f \"${CLAUDE_PROJECT_DIR}/project.godot\" ] && [ ! -f \"$HOME/.appstoreconnect/asc_auth.env\" ] && echo 'godot-ios: App Store Connect の認証が未設定です（~/.appstoreconnect/asc_auth.env）。提出系 asc-* を使うなら /godot-ios:setup で設定できます。実機デプロイ(ios-run)には不要。' || true"
+          }
+        ]
+      }
+    ]
+  }
+}

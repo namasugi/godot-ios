@@ -8,5 +8,6 @@
   "repository": "https://github.com/namasugi/godot-ios",
   "license": "MIT",
   "keywords": ["godot", "ios", "app-store-connect", "testflight", "xcode", "deploy"],
-  "skills": "./skills/"
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
 }

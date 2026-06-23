@@ -1,0 +1,59 @@
+#!/usr/bin/env bash
+# App Store Connect API 認証をセットアップ（~/.appstoreconnect/asc_auth.env を作成・検証）。
+# 対話実行も、環境変数で値を渡す非対話実行も可能:
+#   godot-ios-setup
+#   ASC_KEY_ID=... ASC_ISSUER_ID=... ASC_KEY_PATH=... godot-ios-setup
+set -euo pipefail
+src="${BASH_SOURCE[0]}"
+while [ -h "$src" ]; do d="$(cd -P "$(dirname "$src")" && pwd)"; src="$(readlink "$src")"; [[ $src != /* ]] && src="$d/$src"; done
+GODOT_IOS_HOME="$(cd -P "$(dirname "$src")/.." && pwd)"
+source "$GODOT_IOS_HOME/lib/common.sh"
+
+AUTH_DIR="${AUTH_DIR:-$HOME/.appstoreconnect}"
+ENV_FILE="$AUTH_DIR/asc_auth.env"
+
+key_id="${ASC_KEY_ID:-}"
+issuer="${ASC_ISSUER_ID:-}"
+key_path="${ASC_KEY_PATH:-}"
+
+echo "App Store Connect API 認証のセットアップ（アカウント単位・全アプリ共通）"
+echo "取得元: App Store Connect → ユーザーとアクセス → 統合 → App Store Connect API"
+echo
+
+if [[ -f "$ENV_FILE" && -z "$key_id$issuer$key_path" ]]; then
+  echo "既存の認証ファイルがあります: $ENV_FILE"
+  read -r -p "上書きしますか? [y/N]: " yn
+  [[ "$yn" =~ ^[Yy] ]] || { echo "中止しました（既存を保持）。"; exit 0; }
+fi
+
+# 不足分を対話で集める（TTY がある時のみ read が機能。非対話なら env で渡す）
+[[ -z "$key_id"   ]] && read -r -p "Key ID（例 ABCDE12345）: " key_id
+[[ -z "$issuer"   ]] && read -r -p "Issuer ID（例 12345678-90ab-cdef-1234-567890abcdef）: " issuer
+[[ -z "$key_path" ]] && read -r -p ".p8 のパス（例 ~/.appstoreconnect/private_keys/AuthKey_XXXX.p8）: " key_path
+
+if [[ -z "$key_id" || -z "$issuer" || -z "$key_path" ]]; then
+  echo "✗ 3項目すべて必要です（Key ID / Issuer ID / .p8 パス）。" >&2; exit 1
+fi
+
+expanded="${key_path/#\~/$HOME}"
+[[ -f "$expanded" ]] || echo "⚠ .p8 が見つかりません: ${expanded}（パスは保存しますが配置を確認してください）" >&2
+
+mkdir -p "$AUTH_DIR/private_keys"
+( umask 077; cat > "$ENV_FILE" <<EOF
+# App Store Connect API 認証情報（godot-ios-setup が生成）。アカウント単位・全アプリ共通。
+# このファイルと *.p8 はコミットしないこと。
+ASC_KEY_ID="$key_id"
+ASC_ISSUER_ID="$issuer"
+ASC_KEY_PATH="$key_path"
+EOF
+)
+chmod 600 "$ENV_FILE"
+echo "✓ 認証を書き込みました: ${ENV_FILE}（パーミッション 600）"
+
+# 検証: 実際に JWT を署名してみて .p8 が読めるか確認
+PY="$(ensure_venv)"
+if ASC_AUTH_ENV="$ENV_FILE" "$PY" -c "import sys; sys.path.insert(0,'$GODOT_IOS_HOME/lib'); import asc_common; asc_common.token()" 2>/dev/null; then
+  echo "✓ JWT 署名OK（.p8 を読めました）。Godot プロジェクト内で 'asc-audit' などが使えます。"
+else
+  echo "⚠ JWT 署名テストに失敗。.p8 のパス/中身を確認してください（${expanded}）。" >&2
+fi
